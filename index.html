@@ -1,0 +1,97 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import time
+import random
+import plotly.express as px
+import websocket
+import json
+import requests
+from sklearn.linear_model import LinearRegression
+
+# --- UI SETTINGS ---
+st.set_page_config(page_title="DataFlowX Dashboard", layout="wide", initial_sidebar_state="expanded")
+
+def load_data():
+    """Simulates real-time data loading from Kafka/Spark."""
+    return pd.DataFrame({
+        "Timestamp": pd.date_range(start="2025-01-01", periods=100, freq="T"),
+        "Throughput": np.random.randint(500, 2000, 100),
+        "Latency": np.random.uniform(10, 50, 100),
+        "Error Rate": np.random.uniform(0, 5, 100)
+    })
+
+def stream_data():
+    """Mock real-time data stream."""
+    return {
+        "Timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "Throughput": random.randint(500, 2000),
+        "Latency": random.uniform(10, 50),
+        "Error Rate": random.uniform(0, 5)
+    }
+
+# --- WEBSOCKET CONNECTION FOR REAL-TIME UPDATES ---
+def on_message(ws, message):
+    data = json.loads(message)
+    st.session_state.realtime_data.append(data)
+
+def on_open(ws):
+    ws.send("Subscribe to DataFlowX Stream")
+
+def start_websocket():
+    ws = websocket.WebSocketApp("wss://dataflowx-stream.com", on_message=on_message, on_open=on_open)
+    ws.run_forever()
+
+if "realtime_data" not in st.session_state:
+    st.session_state.realtime_data = []
+    
+# --- DASHBOARD UI ---
+st.title("📊 DataFlowX: Real-Time Data Processing at Scale")
+
+col1, col2, col3 = st.columns(3)
+
+# Real-time Metrics
+with col1:
+    st.metric("Throughput", f"{stream_data()['Throughput']} records/sec")
+with col2:
+    st.metric("Latency", f"{stream_data()['Latency']:.2f} ms")
+with col3:
+    st.metric("Error Rate", f"{stream_data()['Error Rate']:.2f} %")
+
+# Historical Data Plot
+data = load_data()
+fig = px.line(data, x="Timestamp", y=["Throughput", "Latency", "Error Rate"], title="Historical Data Trends")
+st.plotly_chart(fig)
+
+# --- ALERT SYSTEM ---
+def send_alert(msg):
+    """Mock alert system (Email/SMS notifications)."""
+    st.warning(msg)
+    requests.post("https://alert-system.com/send", json={"message": msg})
+
+if stream_data()['Latency'] > 40:
+    send_alert("⚠️ High Latency Detected!")
+if stream_data()['Error Rate'] > 3:
+    send_alert("⚠️ High Error Rate Detected!")
+
+# --- PREDICTIVE ANALYTICS ---
+reg = LinearRegression()
+data["Time Index"] = np.arange(len(data))
+X = data[["Time Index"]]
+y = data["Throughput"]
+reg.fit(X, y)
+predicted_throughput = reg.predict([[len(data) + 10]])
+st.subheader("🔮 AI-Based Throughput Prediction")
+st.write(f"Predicted Throughput (Next Interval): {predicted_throughput[0]:.2f} records/sec")
+
+# --- CLOUD RESOURCE MONITORING ---
+st.sidebar.title("☁️ Cloud Resource Utilization")
+st.sidebar.progress(random.uniform(0.4, 0.9), text="AWS Lambda Usage")
+st.sidebar.progress(random.uniform(0.3, 0.8), text="Kinesis Data Stream")
+st.sidebar.progress(random.uniform(0.2, 0.7), text="S3 Storage Consumption")
+
+# --- DARK/LIGHT MODE ---
+mode = st.sidebar.radio("🌓 Theme Mode", ["Light", "Dark"])
+st.markdown("<style> body { background-color: #1E1E1E; color: white; } </style>" if mode == "Dark" else "", unsafe_allow_html=True)
+
+st.success("🚀 Dashboard Loaded Successfully!")
